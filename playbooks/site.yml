@@ -1,0 +1,11 @@
+---
+- name: Common configuration for all servers
+  hosts: all
+  roles:
+    - common
+
+- name: Include cloud configuration
+  import_playbook: cloud.yml
+
+- name: Include Raspberry Pi configuration
+  import_playbook: raspberrypi.yml

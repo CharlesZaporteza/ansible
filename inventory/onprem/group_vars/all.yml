@@ -1,0 +1,6 @@
+ansible_user: czuser
+ansible_become: yes
+k3s_version: v1.28.3+k3s2
+k3s_server_location: /usr/local/bin/k3s
+ansible_become_password: czuser
+k3s_token: "mysecuretoken123"  # Change this to a secure token
