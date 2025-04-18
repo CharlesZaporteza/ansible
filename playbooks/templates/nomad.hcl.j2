@@ -1,0 +1,33 @@
+data_dir = "{{ data_dir }}/nomad"
+bind_addr = "0.0.0.0"
+
+{% if nomad_server %}
+server {
+  enabled = true
+  bootstrap_expect = {{ bootstrap_expect }}
+}
+{% else %}
+client {
+  enabled = true
+  state_dir  = "{{ data_dir }}/nomad/client"
+  alloc_dir  = "{{ data_dir }}/nomad/alloc"
+
+  server_join {
+    retry_join = {{ nomad_servers | to_json }}
+  }
+}
+{% endif %}
+
+advertise {
+  http = "{{ ansible_host }}"
+  rpc  = "{{ ansible_host }}"
+  serf = "{{ ansible_host }}"
+}
+
+consul {
+  address = "127.0.0.1:8500"
+  client_auto_join = true
+  auto_advertise   = true
+  server_service_name = "nomad"
+  client_service_name = "nomad-client"
+}

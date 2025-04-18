@@ -1,0 +1,8 @@
+ansible_user: czuser
+ansible_become: yes
+ansible_become_password: czuser
+consul_version: "1.20.5"
+nomad_version: "1.10.0"
+data_dir: "/opt"
+bootstrap_expect: "{{ groups['server'] | length }}"
+nomad_servers: "{{ groups['server'] | map('extract', hostvars, 'ansible_host') | list }}"
