@@ -1,0 +1,15 @@
+server = {{ consul_server | default(false) | lower }}
+
+{% if consul_server %}
+bootstrap_expect = {{ bootstrap_expect | default(1) }}
+{% endif %}
+
+data_dir = "{{ data_dir }}/consul"
+bind_addr = "0.0.0.0"
+client_addr = "0.0.0.0"
+
+{% if retry_join is defined and retry_join | length > 0 %}
+retry_join = {{ retry_join | to_json }}
+{% endif %}
+
+ui = true

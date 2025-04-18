@@ -1,0 +1,100 @@
+- name: Install and configure Consul and Nomad
+  hosts: all
+  become: true
+  vars:
+    arch_map:
+      aarch64: arm64
+      x86_64: amd64
+    architecture: "{{ arch_map[ansible_architecture] }}"
+
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: [curl, unzip, jq]
+        update_cache: yes
+
+    - name: Download and install Consul
+      unarchive:
+        src: "https://releases.hashicorp.com/consul/{{ consul_version }}/consul_{{ consul_version }}_linux_{{ architecture }}.zip"
+        dest: /usr/local/bin/
+        remote_src: yes
+        mode: '0755'
+
+    - name: Download and install Nomad
+      unarchive:
+        src: "https://releases.hashicorp.com/nomad/{{ nomad_version }}/nomad_{{ nomad_version }}_linux_{{ architecture }}.zip"
+        dest: /usr/local/bin/
+        remote_src: yes
+        mode: '0755'
+
+    - name: Create config directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/nomad.d
+        - /etc/consul.d
+        - "{{ data_dir }}/nomad"
+        - "{{ data_dir }}/consul"
+
+    - name: Template Consul config
+      template:
+        src: "templates/consul.hcl.j2"
+        dest: /etc/consul.d/config.hcl
+        mode: '0644'
+
+    - name: Template Nomad config
+      template:
+        src: "templates/nomad.hcl.j2"
+        dest: /etc/nomad.d/config.hcl
+        mode: '0644'
+
+    - name: Setup systemd units
+      copy:
+        dest: "/etc/systemd/system/{{ item }}.service"
+        mode: '0644'
+        content: |
+          [Unit]
+          Description={{ item | capitalize }}
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/local/bin/{{ item }} agent {% if item == 'nomad' %}-config{% else %}-config-dir{% endif %}=/etc/{{ item }}.d
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+      loop:
+        - consul
+        - nomad
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start Consul and Nomad
+      systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - consul
+        - nomad
+
+    - name: Allow Consul and Nomad firewall ports with UFW
+      ufw:
+        rule: allow
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+      loop:
+        - { port: "8300", proto: "tcp" }  # Consul RPC
+        - { port: "8301", proto: "tcp" }  # Consul Serf LAN (TCP)
+        - { port: "8301", proto: "udp" }  # Consul Serf LAN (UDP)
+        - { port: "8302", proto: "tcp" }  # Consul Serf WAN (TCP)
+        - { port: "8302", proto: "udp" }  # Consul Serf WAN (UDP)
+        - { port: "8500", proto: "tcp" }  # Consul HTTP API & UI
+        - { port: "4646", proto: "tcp" }  # Nomad UI
+
+    - name: Reload UFW
+      command: ufw reload 
